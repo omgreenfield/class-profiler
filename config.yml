@@ -7,10 +7,12 @@ emails:
   - mattgreenfield1@gmail.com
 summary: Quickly benchmark speed and profile memory of specific or all methods within a class
 description: |
-  TBD
+  Quickly benchmark execution time and profile memory allocations for specific or
+  all instance methods within a class. Include ClassProfiler to get helper methods
+  and collect results via `benchmarked` and `profiled_memory`.
 homepage: https://github.com/omgreenfield/class-profiler
 license: MIT
-required_ruby_version: '>= 2.7.0' # I don't remember why I picked this version
+required_ruby_version: '>= 3.1.0'
 metadata:
   homepage_uri: https://github.com/omgreenfield/class-profiler
   rubygems_mfa_required: 'true'

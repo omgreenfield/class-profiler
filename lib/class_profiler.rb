@@ -8,7 +8,12 @@ module ClassProfiler
   NAME = 'class-profiler'
   VERSION = '0.1.0'
 
-  include Benchmark
-  include Memory
-  include Logging
+  # Including ClassProfiler in your class will include all submodules:
+  # Benchmark, Memory, and Logging. This ensures the class-level APIs like
+  # `benchmark_methods` and `profile_methods` are available on your class.
+  def self.included(base)
+    base.include(ClassProfiler::Benchmark)
+    base.include(ClassProfiler::Memory)
+    base.include(ClassProfiler::Logging)
+  end
 end
