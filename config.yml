@@ -1,20 +1,16 @@
 ---
 version: 0.1.0
-name: omg-gem_template
+name: class-profiler
 authors:
   - Matthew Greenfield
 emails: 
   - mattgreenfield1@gmail.com
-summary: Template for a Ruby gem
+summary: Quickly benchmark speed and profile memory of specific or all methods within a class
 description: |
-  - Has `rakefile.rb` for specs and gems
-  - Has `bin/console` for interactive testing
-  - Has `bin/setup` for settings up the development environment
-  - Has `config.yml` to define gem metadata
-  - Has several gems that I find useful
-homepage: https://github.com/omgreenfield/ruby-gem-template
+  TBD
+homepage: https://github.com/omgreenfield/class-profiler
 license: MIT
 required_ruby_version: '>= 2.7.0' # I don't remember why I picked this version
 metadata:
-  homepage_uri: https://github.com/omgreenfield/ruby-gem-template
+  homepage_uri: https://github.com/omgreenfield/class-profiler
   rubygems_mfa_required: 'true'
