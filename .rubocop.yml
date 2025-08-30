@@ -17,3 +17,9 @@ Metrics/BlockLength:
 
 Style/BlockComments:
   Enabled: false
+
+Metrics/AbcSize:
+  Enabled: false
+
+Metrics/MethodLength:
+  Enabled: false

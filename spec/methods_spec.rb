@@ -22,8 +22,8 @@ RSpec.describe ClassProfiler::Methods do
     klass = Class.new do
       include ClassProfiler::Methods
 
-      def add(a, b)
-        a + b
+      def add(arg1, arg2)
+        arg1 + arg2
       end
 
       wrap_method :add, prefix: 'wrapped_' do |original, *args|
@@ -37,5 +37,3 @@ RSpec.describe ClassProfiler::Methods do
     expect(instance.public_send(:wrapped_add, 2, 3)).to eq(5)
   end
 end
-
-

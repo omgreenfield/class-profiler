@@ -20,7 +20,7 @@ module ClassProfiler
         alias_method wrapped_method_name, method_name
         wrapped_method = instance_method(wrapped_method_name)
 
-        define_method(method_name) do |*args, &method_block|
+        define_method(method_name) do |*args|
           instance_exec(wrapped_method, *args, &wrapper)
         end
       end
