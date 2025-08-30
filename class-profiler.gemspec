@@ -18,15 +18,17 @@ Gem::Specification.new do |gem|
   gem.homepage = 'https://github.com/omgreenfield/class-profiler'
   gem.license = 'MIT'
 
-  if File.exist?(File.expand_path('.git'))
-    gem.files = `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^spec/}) }
-  else
-    gem.files = Dir['lib/**/*.rb'] + Dir['*.md'] + Dir['LICENSE*']
-  end
+  gem.files = if File.exist?(File.expand_path('.git'))
+                `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^spec/}) }
+              else
+                Dir['lib/**/*.rb'] + Dir['*.md'] + Dir['LICENSE*']
+              end
   gem.require_paths = ['lib']
 
   gem.required_ruby_version = '>= 3.1.0'
 
+  gem.add_development_dependency 'guard'
+  gem.add_development_dependency 'guard-rspec'
   gem.add_development_dependency 'pry'
   gem.add_development_dependency 'pry-byebug'
   gem.add_development_dependency 'pry-stack_explorer'
