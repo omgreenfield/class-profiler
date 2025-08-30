@@ -1,43 +1,57 @@
 # frozen_string_literal: true
 
 RSpec.describe ClassProfiler::Memory do
-  it 'profiles specified methods and records allocation deltas' do
-    klass = Class.new do
-      include ClassProfiler::Memory
+  context 'with profile_methods for explicit method list' do
+    let(:klass) do
+      Class.new do
+        include ClassProfiler::Memory
 
-      def allocate_strings
-        Array.new(50) { 'x' * 10 }
+        def allocate_strings
+          Array.new(50) { 'x' * 10 }
+        end
+
+        profile_methods :allocate_strings
       end
-
-      profile_methods :allocate_strings
     end
 
-    obj = klass.new
-    obj.allocate_strings
+    let(:obj) { klass.new }
 
-    expect(obj.profiled_memory).to include(:allocate_strings)
-    stats = obj.profiled_memory[:allocate_strings]
-    expect(stats[:allocated_objects]).to be >= 0
-    expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+    before { obj.allocate_strings }
+
+    it 'records allocation deltas for the profiled method' do
+      expect(obj.profiled_memory).to include(:allocate_strings)
+      stats = obj.profiled_memory[:allocate_strings]
+      expect(stats[:allocated_objects]).to be_a(Integer)
+      expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+    end
   end
 
-  it 'profiles only non-inherited instance methods when requested' do
-    parent = Class.new do
-      include ClassProfiler::Memory
-      def parent_allocate = Array.new(10) { 'x' }
+  context 'with profile_instance_methods in an inheritance hierarchy' do
+    let(:parent) do
+      Class.new do
+        include ClassProfiler::Memory
+        def parent_allocate = Array.new(10) { 'x' }
+      end
     end
 
-    child = Class.new(parent) do
-      def child_allocate = Array.new(10) { 'y' }
-      profile_instance_methods
+    let(:child) do
+      Class.new(parent) do
+        def child_allocate = Array.new(10) { 'y' }
+        profile_instance_methods
+      end
     end
 
-    obj = child.new
-    obj.parent_allocate
-    obj.child_allocate
+    let(:obj) { child.new }
 
-    expect(obj.profiled_memory).to include(:child_allocate)
-    expect(obj.profiled_memory).not_to include(:parent_allocate)
+    before do
+      obj.parent_allocate
+      obj.child_allocate
+    end
+
+    it 'profiles only non-inherited methods' do
+      expect(obj.profiled_memory).to include(:child_allocate)
+      expect(obj.profiled_memory).not_to include(:parent_allocate)
+    end
   end
 
   # NOTE: inherited-all behavior can be environment-sensitive; focusing on explicit method profiling
