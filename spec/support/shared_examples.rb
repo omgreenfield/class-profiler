@@ -10,4 +10,3 @@ RSpec.shared_examples 'records memory stats for expected methods' do
     end
   end
 end
-

@@ -70,16 +70,28 @@ RSpec.describe ClassProfiler::Benchmark do
       Class.new do
         include ClassProfiler::Benchmark
         def parent_method = 'p'
-        protected def parent_protected = 'pp'
-        private def parent_private = 'pv'
+
+        protected
+
+        def parent_protected = 'pp'
+
+        private
+
+        def parent_private = 'pv'
       end
     end
 
     let(:child) do
       Class.new(parent) do
         def child_method = 'c'
-        protected def child_protected = 'cp'
-        private def child_private = 'cv'
+
+        protected
+
+        def child_protected = 'cp'
+
+        private
+
+        def child_private = 'cv'
         benchmark_all_methods(visibility: :all)
       end
     end
@@ -94,7 +106,8 @@ RSpec.describe ClassProfiler::Benchmark do
       obj.send(:child_protected)
       obj.send(:child_private)
 
-      expect(benchmarked).to include(:child_method, :parent_method, :child_protected, :parent_protected, :child_private, :parent_private)
+      expect(benchmarked).to include(:child_method, :parent_method, :child_protected, :parent_protected,
+                                     :child_private, :parent_private)
       expect(benchmarked.values).to all(be >= 0)
     end
   end
@@ -127,8 +140,13 @@ RSpec.describe ClassProfiler::Benchmark do
           include ClassProfiler::Benchmark
           def self.p_pub = 'pp'
           class << self
-            protected def p_prot = 'prot'
-            private def p_priv = 'priv'
+            protected
+
+            def p_prot = 'prot'
+
+            private
+
+            def p_priv = 'priv'
           end
         end
       end
@@ -137,8 +155,13 @@ RSpec.describe ClassProfiler::Benchmark do
         Class.new(parent) do
           def self.c_pub = 'cp'
           class << self
-            protected def c_prot = 'prot'
-            private def c_priv = 'priv'
+            protected
+
+            def c_prot = 'prot'
+
+            private
+
+            def c_priv = 'priv'
           end
 
           benchmark_own_class_methods(visibility: :all)
