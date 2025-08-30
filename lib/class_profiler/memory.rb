@@ -1,7 +1,10 @@
+# frozen_string_literal: true
+
 module ClassProfiler
   module Memory
     def self.included(base)
       base.extend(ClassMethods)
+      base.extend(Methods::ClassMethods)
       base.include(InstanceMethods)
     end
 
@@ -25,18 +28,17 @@ module ClassProfiler
       end
 
       # Wraps each method and records allocation deltas per call
+      #
       # @param method_names [Array<Symbol>]
       def profile_methods(*method_names)
         require 'objspace'
 
         method_names.each do |method_name|
-          alias_method "#{method_name}_without_memory_profile".to_sym, method_name
-
-          define_method(method_name) do |*args, &block|
+          wrap_method method_name do |original, *args, &block|
             before_alloc_objects = GC.stat[:total_allocated_objects]
             before_malloc_bytes = GC.stat[:malloc_increase_bytes] || 0
 
-            result = send("#{method_name}_without_memory_profile".to_sym, *args, &block)
+            result = original.bind(self).call(*args, &block)
 
             after_alloc_objects = GC.stat[:total_allocated_objects]
             after_malloc_bytes = GC.stat[:malloc_increase_bytes] || 0

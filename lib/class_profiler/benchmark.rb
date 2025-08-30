@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 ##
 # Benchmarks all or specific instance methods within a class.
 #
@@ -32,6 +34,8 @@ module ClassProfiler
   module Benchmark
     def self.included(base)
       base.extend(ClassMethods)
+      # Ensure the including class has access to wrap_method
+      base.extend(Methods::ClassMethods)
       base.include(InstanceMethods)
     end
 
@@ -62,13 +66,10 @@ module ClassProfiler
       # @param method_names [Array<Symbol>] the names of the methods to benchmark
       def benchmark_methods(*method_names)
         method_names.each do |method_name|
-          alias_method "#{method_name}_without_benchmark".to_sym, method_name
-
-          define_method(method_name) do |*args, &block|
+          wrap_method method_name do |original, *args, &block|
             start_time = Time.now
-            result = send("#{method_name}_without_benchmark".to_sym, *args, &block)
+            result = original.bind(self).call(*args, &block)
             end_time = Time.now
-
             benchmarked[method_name] = end_time - start_time
             result
           end

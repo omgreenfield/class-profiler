@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module ClassProfiler
   module Logging
     def self.included(base)

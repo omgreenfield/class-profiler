@@ -14,8 +14,8 @@ RSpec.describe ClassProfiler do
       klass = Class.new do
         include ClassProfiler
 
-        def fast; 1 + 1; end
-        def slow; sleep 0.01; end
+        def fast = 1.+(1)
+        def slow = sleep(0.01)
 
         benchmark_methods :fast, :slow
       end
@@ -31,11 +31,11 @@ RSpec.describe ClassProfiler do
     it 'benchmarks only non-inherited instance methods when requested' do
       parent = Class.new do
         include ClassProfiler
-        def parent_method; 'p'; end
+        def parent_method = 'p'
       end
 
       child = Class.new(parent) do
-        def child_method; 'c'; end
+        def child_method = 'c'
         benchmark_instance_methods
       end
 
@@ -54,7 +54,7 @@ RSpec.describe ClassProfiler do
         include ClassProfiler
 
         def allocate_strings
-          Array.new(100) { "x" * 10 }
+          Array.new(100) { 'x' * 10 }
         end
 
         profile_methods :allocate_strings
@@ -72,11 +72,11 @@ RSpec.describe ClassProfiler do
     it 'profiles only non-inherited instance methods when requested' do
       parent = Class.new do
         include ClassProfiler
-        def parent_allocate; Array.new(10) { 'x' }; end
+        def parent_allocate = Array.new(10) { 'x' }
       end
 
       child = Class.new(parent) do
-        def child_allocate; Array.new(10) { 'y' }; end
+        def child_allocate = Array.new(10) { 'y' }
         profile_instance_methods
       end
 

@@ -61,6 +61,37 @@ Helpers are also available to target all methods:
   - `allocated_objects` (Integer)
   - `malloc_increase_bytes` (Integer)
 
+### Composing with wrap_method
+
+You can compose custom behaviors using the built-in `wrap_method` helper from `ClassProfiler::Methods`.
+This is the same mechanism used by the Benchmark and Memory modules under the hood.
+
+```ruby
+class Widget
+  include ClassProfiler
+
+  def compute(x, y)
+    x + y
+  end
+
+  # Add custom logging around the original implementation
+  wrap_method :compute do |original, *args|
+    profiler_logger.info("compute called with #{args.inspect}")
+    result = original.bind(self).call(*args)
+    profiler_logger.info("compute returned #{result}")
+    result
+  end
+
+  # You can still benchmark or profile the same method
+  benchmark_methods :compute
+  # profile_methods :compute
+end
+
+w = Widget.new
+w.compute(2, 3)
+w.benchmarked[:compute] # => elapsed seconds
+```
+
 ### Requirements
 
 - Ruby >= 3.1
