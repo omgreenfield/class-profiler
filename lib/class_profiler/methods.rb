@@ -37,6 +37,7 @@ module ClassProfiler
       end
 
       # Select instance method names by visibility and inheritance, excluding helpers/reserved
+      #
       # @param visibility [Symbol] :public, :protected, :private, :all
       # @param include_inherited [Boolean]
       # @return [Array<Symbol>]

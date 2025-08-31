@@ -14,6 +14,24 @@ module ClassProfiler
       def profiled_memory
         @profiled_memory ||= {}
       end
+
+      # Emits a formatted report of instance memory profiling for this object
+      # Returns the formatted text. Also logs via profiler_logger if present.
+      def memory_report(include_zero: true)
+        header = "Memory profile (#{self.class.name} instance):"
+        lines = [header]
+        profiled_memory.each do |method, data|
+          next if !include_zero && data[:allocated_objects].to_i.zero? && data[:malloc_increase_bytes].to_i.zero?
+          lines << "  #{method}: allocated_objects=#{data[:allocated_objects]}, malloc_increase_bytes=#{data[:malloc_increase_bytes]}"
+        end
+        text = lines.join("\n")
+        begin
+          profiler_logger&.info(text)
+        rescue => e
+          warn("[class-profiler] memory_report logging failed: #{e.class}: #{e.message}")
+        end
+        text
+      end
     end
 
     module ClassMethods
@@ -56,6 +74,7 @@ module ClassProfiler
           end
         end
       end
+
     end
   end
 end

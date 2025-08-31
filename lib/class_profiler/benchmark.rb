@@ -43,6 +43,25 @@ module ClassProfiler
       def benchmarked
         @benchmarked ||= {}
       end
+
+      # Emits a formatted report of instance method benchmarks for this object
+      # Returns the formatted text. Also logs via profiler_logger if present.
+      def benchmark_report(include_zero: false)
+        header = "Benchmark results (#{self.class.name} instance):"
+        lines = [header]
+        benchmarked.each do |method, seconds|
+          next if !include_zero && seconds.to_f <= 0.0
+
+          lines << "  #{method}: #{format('%.6f', seconds)}s"
+        end
+        text = lines.join("\n")
+        begin
+          profiler_logger&.info(text)
+        rescue => e
+          warn("[class-profiler] benchmark_report logging failed: #{e.class}: #{e.message}")
+        end
+        text
+      end
     end
 
     module ClassMethods
@@ -93,6 +112,24 @@ module ClassProfiler
             result
           end
         end
+      end
+
+      # Emits a formatted report of class method benchmarks for this class
+      # Returns the formatted text. Also logs via profiler_logger if present.
+      def benchmark_class_report(include_zero: false)
+        header = "Benchmark results (#{name} class methods):"
+        lines = [header]
+        class_benchmarked.each do |method, seconds|
+          next if !include_zero && seconds.to_f <= 0.0
+          lines << "  #{method}: #{format('%.6f', seconds)}s"
+        end
+        text = lines.join("\n")
+        begin
+          profiler_logger&.info(text)
+        rescue => e
+          warn("[class-profiler] benchmark_class_report logging failed: #{e.class}: #{e.message}")
+        end
+        text
       end
 
       # Benchmarks class methods defined only on this class (non-inherited)

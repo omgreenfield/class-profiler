@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'logger'
+
 RSpec.describe ClassProfiler::Memory do
   context 'with profile_methods for explicit method list' do
     let(:klass) do
@@ -18,11 +20,32 @@ RSpec.describe ClassProfiler::Memory do
 
     before { obj.allocate_strings }
 
-    it 'records allocation deltas for the profiled method' do
+    it 'records allocation deltas for the profiled method and reports' do
       expect(obj.profiled_memory).to include(:allocate_strings)
       stats = obj.profiled_memory[:allocate_strings]
       expect(stats[:allocated_objects]).to be_a(Integer)
       expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+      text = obj.memory_report
+      expect(text).to include('Memory profile (')
+      expect(text).to include('allocate_strings:')
+    end
+
+    it 'writes the memory report to the configured logger' do
+      require 'stringio'
+      io = StringIO.new
+      logger = Logger.new(io)
+      logger.level = Logger::INFO
+
+      # attach logger via a wrapper class that includes Logging
+      # attach logger to the klass via Logging
+      klass_with_logging = Class.new(klass) do
+        include ClassProfiler::Logging
+      end
+      obj = klass_with_logging.new
+      klass_with_logging.profiler_logger = logger
+
+      obj.memory_report
+      expect(io.string).to include('Memory profile (')
     end
   end
 

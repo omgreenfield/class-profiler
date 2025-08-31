@@ -1,10 +1,13 @@
 # frozen_string_literal: true
 
+require 'logger'
+
 RSpec.describe ClassProfiler::Benchmark do
   describe '#benchmark_methods' do
     let(:klass) do
       Class.new do
         include ClassProfiler::Benchmark
+        include ClassProfiler::Logging
 
         def fast = 1.+(1)
         def slow = sleep(0.002)
@@ -30,6 +33,26 @@ RSpec.describe ClassProfiler::Benchmark do
 
     it 'measures slow >= fast to guard against flakiness' do
       expect(obj.benchmarked[:slow]).to be >= obj.benchmarked[:fast]
+    end
+    it 'generates a benchmark report on demand' do
+      text = obj.benchmark_report
+      expect(text).to include('Benchmark results (')
+      expect(text).to include('fast:')
+      expect(text).to include('slow:')
+    end
+
+    it 'writes the report to the configured logger' do
+      require 'stringio'
+      io = StringIO.new
+      logger = Logger.new(io)
+      logger.level = Logger::INFO
+      klass.profiler_logger = logger
+
+      obj.benchmark_report
+
+      output = io.string
+      expect(output).to include('Benchmark results (')
+      expect(output).to include('fast:')
     end
   end
 
@@ -106,6 +129,7 @@ RSpec.describe ClassProfiler::Benchmark do
       let(:klass) do
         Class.new do
           include ClassProfiler::Benchmark
+          include ClassProfiler::Logging
 
           def self.a = 1.+(1)
           def self.b = sleep(0.002)
@@ -120,6 +144,27 @@ RSpec.describe ClassProfiler::Benchmark do
         expect(klass.class_benchmarked).to include(:a, :b)
         expect(klass.class_benchmarked[:a]).to be >= 0
         expect(klass.class_benchmarked[:b]).to be >= 0
+      end
+
+      it 'generates a class benchmark report on demand' do
+        klass.a
+        expect(klass.benchmark_class_report).to include('Benchmark results (')
+        expect(klass.benchmark_class_report).to include('a:')
+      end
+
+      it 'writes the class report to the configured logger' do
+        require 'stringio'
+        io = StringIO.new
+        logger = Logger.new(io)
+        logger.level = Logger::INFO
+        klass.profiler_logger = logger
+
+        klass.a
+        klass.benchmark_class_report
+
+        output = io.string
+        expect(output).to include('Benchmark results (')
+        expect(output).to include('a:')
       end
     end
   end
