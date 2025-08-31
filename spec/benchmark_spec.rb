@@ -1,9 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe ClassProfiler::Benchmark do
-  let(:benchmarked) { obj.benchmarked }
-
-  context 'with benchmark_methods for explicit method list' do
+  describe '#benchmark_methods' do
     let(:klass) do
       Class.new do
         include ClassProfiler::Benchmark
@@ -23,19 +21,19 @@ RSpec.describe ClassProfiler::Benchmark do
     end
 
     it 'records timings for explicit methods' do
-      expect(benchmarked.keys).to include(:fast, :slow)
-      expect(benchmarked[:fast]).to be_a(Numeric)
-      expect(benchmarked[:slow]).to be_a(Numeric)
-      expect(benchmarked[:fast]).to be >= 0
-      expect(benchmarked[:slow]).to be >= 0
+      expect(obj.benchmarked.keys).to include(:fast, :slow)
+      expect(obj.benchmarked[:fast]).to be_a(Numeric)
+      expect(obj.benchmarked[:slow]).to be_a(Numeric)
+      expect(obj.benchmarked[:fast]).to be >= 0
+      expect(obj.benchmarked[:slow]).to be >= 0
     end
 
     it 'measures slow >= fast to guard against flakiness' do
-      expect(benchmarked[:slow]).to be >= benchmarked[:fast]
+      expect(obj.benchmarked[:slow]).to be >= obj.benchmarked[:fast]
     end
   end
 
-  context 'with benchmark_instance_methods in an inheritance hierarchy' do
+  describe '#benchmark_instance_methods' do
     let(:parent) do
       Class.new do
         include ClassProfiler::Benchmark
@@ -58,26 +56,21 @@ RSpec.describe ClassProfiler::Benchmark do
     end
 
     it 'benchmarks only non-inherited methods' do
-      # parent method was invoked but should not be wrapped when selecting non-inherited
-      expect(benchmarked).not_to include(:parent_method)
-      expect(benchmarked).to include(:child_method)
-      expect(benchmarked[:child_method]).to be >= 0
+      expect(obj.benchmarked).not_to include(:parent_method)
+      expect(obj.benchmarked).to include(:child_method)
+      expect(obj.benchmarked[:child_method]).to be >= 0
     end
   end
 
-  context 'with benchmark_all_methods including inherited methods' do
+  describe '#benchmark_all_methods' do
     let(:parent) do
       Class.new do
         include ClassProfiler::Benchmark
         def parent_method = 'p'
 
-        protected
+        protected def parent_protected = 'pp'
 
-        def parent_protected = 'pp'
-
-        private
-
-        def parent_private = 'pv'
+        private def parent_private = 'pv'
       end
     end
 
@@ -85,13 +78,9 @@ RSpec.describe ClassProfiler::Benchmark do
       Class.new(parent) do
         def child_method = 'c'
 
-        protected
+        protected def child_protected = 'cp'
 
-        def child_protected = 'cp'
-
-        private
-
-        def child_private = 'cv'
+        private def child_private = 'cv'
         benchmark_all_methods(visibility: :all)
       end
     end
@@ -106,13 +95,13 @@ RSpec.describe ClassProfiler::Benchmark do
       obj.send(:child_protected)
       obj.send(:child_private)
 
-      expect(benchmarked).to include(:child_method, :parent_method, :child_protected, :parent_protected,
-                                     :child_private, :parent_private)
-      expect(benchmarked.values).to all(be >= 0)
+      expect(obj.benchmarked).to include(:child_method, :parent_method, :child_protected, :parent_protected,
+                                         :child_private, :parent_private)
+      expect(obj.benchmarked.values).to all(be >= 0)
     end
   end
 
-  context 'with class method benchmarking' do
+  describe '#benchmark_class_methods' do
     context 'explicit class methods' do
       let(:klass) do
         Class.new do
@@ -133,20 +122,17 @@ RSpec.describe ClassProfiler::Benchmark do
         expect(klass.class_benchmarked[:b]).to be >= 0
       end
     end
+  end
 
+  describe '#benchmark_own_class_methods' do
     context 'own vs inherited class methods with visibility selection' do
       let(:parent) do
         Class.new do
           include ClassProfiler::Benchmark
           def self.p_pub = 'pp'
           class << self
-            protected
-
-            def p_prot = 'prot'
-
-            private
-
-            def p_priv = 'priv'
+            protected def p_prot = 'prot'
+            private def p_priv = 'priv'
           end
         end
       end
@@ -155,13 +141,8 @@ RSpec.describe ClassProfiler::Benchmark do
         Class.new(parent) do
           def self.c_pub = 'cp'
           class << self
-            protected
-
-            def c_prot = 'prot'
-
-            private
-
-            def c_priv = 'priv'
+            protected def c_prot = 'prot'
+            private def c_priv = 'priv'
           end
 
           benchmark_own_class_methods(visibility: :all)
@@ -175,6 +156,17 @@ RSpec.describe ClassProfiler::Benchmark do
 
         expect(child.class_benchmarked).to include(:c_pub, :c_prot, :c_priv)
         expect(child.class_benchmarked).not_to include(:p_pub, :p_prot, :p_priv)
+      end
+    end
+  end
+
+  describe '#benchmark_all_class_methods' do
+    context 'own vs inherited class methods with visibility selection' do
+      let(:parent) do
+        Class.new do
+          include ClassProfiler::Benchmark
+          def self.p_pub = 'pp'
+        end
       end
 
       it 'benchmarks inherited class methods when requested' do

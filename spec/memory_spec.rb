@@ -53,6 +53,4 @@ RSpec.describe ClassProfiler::Memory do
       expect(obj.profiled_memory).not_to include(:parent_allocate)
     end
   end
-
-  # NOTE: inherited-all behavior can be environment-sensitive; focusing on explicit method profiling
 end

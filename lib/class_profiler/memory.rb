@@ -18,13 +18,17 @@ module ClassProfiler
 
     module ClassMethods
       # Profiles all instance methods including those inherited
-      def profile_all_methods
-        profile_methods(*instance_methods)
+      # @param visibility [Symbol] :public, :protected, :private, :all
+      def profile_all_methods(visibility: :public)
+        names = select_instance_methods(visibility: visibility, include_inherited: true)
+        profile_methods(*names)
       end
 
       # Profiles non-inherited instance methods only
-      def profile_instance_methods
-        profile_methods(*instance_methods(false))
+      # @param visibility [Symbol] :public, :protected, :private, :all
+      def profile_instance_methods(visibility: :public)
+        names = select_instance_methods(visibility: visibility, include_inherited: false)
+        profile_methods(*names)
       end
 
       # Wraps each method and records allocation deltas per call
