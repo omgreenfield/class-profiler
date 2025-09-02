@@ -46,13 +46,34 @@ module ClassProfiler
 
       # Emits a formatted report of instance method benchmarks for this object
       # Returns the formatted text. Also logs via profiler_logger if present.
-      def benchmark_report(include_zero: false)
+      #
+      # @param include_zero [Boolean] include methods with 0.0s measurements
+      # @param sort_by [:time, :name] sort rows by time (ascending) or name
+      def benchmark_report(include_zero: false, sort_by: :time)
+        entries = benchmarked.to_a
+        entries.select! { |(_, s)| include_zero || s.to_f > 0.0 }
+
+        entries.sort_by! do |(m, s)|
+          sort_by == :name ? m.to_s : s.to_f
+        end
+
         header = "Benchmark results (#{self.class.name} instance):"
         lines = [header]
-        benchmarked.each do |method, seconds|
-          next if !include_zero && seconds.to_f <= 0.0
-
-          lines << "  #{method}: #{format('%.6f', seconds)}s"
+        if entries.empty?
+          lines << '  (no data)'
+        else
+          min_time = entries.map { |(_, s)| s.to_f }.reject { |v| v <= 0.0 }.min || 0.0
+          lines << format('%-24s %-12s %-10s', 'Method', 'Time (s)', 'vs fastest')
+          lines << ('-' * 52)
+          entries.each do |(method, seconds)|
+            t = seconds.to_f
+            ratio = if min_time.positive? && t.positive?
+                      format('%.2fx', t / min_time)
+                    else
+                      'n/a'
+                    end
+            lines << format('%-24s %-12.6f %-10s', method, t, ratio)
+          end
         end
         text = lines.join("\n")
         begin
@@ -116,12 +137,32 @@ module ClassProfiler
 
       # Emits a formatted report of class method benchmarks for this class
       # Returns the formatted text. Also logs via profiler_logger if present.
-      def benchmark_class_report(include_zero: false)
+      #
+      # @param include_zero [Boolean]
+      # @param sort_by [:time, :name]
+      def benchmark_class_report(include_zero: false, sort_by: :time)
+        entries = class_benchmarked.to_a
+        entries.select! { |(_, s)| include_zero || s.to_f > 0.0 }
+        entries.sort_by! do |(m, s)|
+          sort_by == :name ? m.to_s : s.to_f
+        end
         header = "Benchmark results (#{name} class methods):"
         lines = [header]
-        class_benchmarked.each do |method, seconds|
-          next if !include_zero && seconds.to_f <= 0.0
-          lines << "  #{method}: #{format('%.6f', seconds)}s"
+        if entries.empty?
+          lines << '  (no data)'
+        else
+          min_time = entries.map { |(_, s)| s.to_f }.reject { |v| v <= 0.0 }.min || 0.0
+          lines << format('%-24s %-12s %-10s', 'Method', 'Time (s)', 'vs fastest')
+          lines << ('-' * 52)
+          entries.each do |(method, seconds)|
+            t = seconds.to_f
+            ratio = if min_time.positive? && t.positive?
+                      format('%.2fx', t / min_time)
+                    else
+                      'n/a'
+                    end
+            lines << format('%-24s %-12.6f %-10s', method, t, ratio)
+          end
         end
         text = lines.join("\n")
         begin

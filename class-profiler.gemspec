@@ -19,7 +19,7 @@ Gem::Specification.new do |gem|
   gem.license = 'MIT'
 
   gem.files = if File.exist?(File.expand_path('.git'))
-                `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^spec/}) }
+                `git ls-files -z`.split("\x0").reject { |f| f.match(%r{^(spec/|examples/)}) }
               else
                 Dir['lib/**/*.rb'] + Dir['*.md'] + Dir['LICENSE*']
               end

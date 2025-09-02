@@ -17,12 +17,39 @@ module ClassProfiler
 
       # Emits a formatted report of instance memory profiling for this object
       # Returns the formatted text. Also logs via profiler_logger if present.
-      def memory_report(include_zero: true)
+      #
+      # @param include_zero [Boolean] include rows with zero deltas
+      # @param sort_by [:objects, :bytes, :name] sort rows by allocations or name
+      def memory_report(include_zero: true, sort_by: :objects)
+        entries = profiled_memory.to_a
+        entries.select! do |(_, data)|
+          include_zero || data[:allocated_objects].to_i.nonzero? || data[:malloc_increase_bytes].to_i.nonzero?
+        end
+
+        entries.sort_by! do |(m, data)|
+          case sort_by
+          when :bytes then [data[:malloc_increase_bytes].to_i, m.to_s]
+          when :name then [m.to_s]
+          else [data[:allocated_objects].to_i, m.to_s]
+          end
+        end
+
         header = "Memory profile (#{self.class.name} instance):"
         lines = [header]
-        profiled_memory.each do |method, data|
-          next if !include_zero && data[:allocated_objects].to_i.zero? && data[:malloc_increase_bytes].to_i.zero?
-          lines << "  #{method}: allocated_objects=#{data[:allocated_objects]}, malloc_increase_bytes=#{data[:malloc_increase_bytes]}"
+        if entries.empty?
+          lines << '  (no data)'
+        else
+          min_objects = entries.map { |(_, d)| d[:allocated_objects].to_i }.reject { |v| v <= 0 }.min || 0
+          min_bytes = entries.map { |(_, d)| d[:malloc_increase_bytes].to_i }.reject { |v| v <= 0 }.min || 0
+          lines << format('%-24s %-18s %-16s %-14s %-14s', 'Method', 'Allocated Objects', 'Malloc +bytes', 'vs min objs', 'vs min bytes')
+          lines << ('-' * 96)
+          entries.each do |(method, data)|
+            objs = data[:allocated_objects].to_i
+            bytes = data[:malloc_increase_bytes].to_i
+            obj_ratio = min_objects.positive? && objs.positive? ? format('%.2fx', objs.to_f / min_objects) : 'n/a'
+            byte_ratio = min_bytes.positive? && bytes.positive? ? format('%.2fx', bytes.to_f / min_bytes) : 'n/a'
+            lines << format('%-24s %-18d %-16d %-14s %-14s', method, objs, bytes, obj_ratio, byte_ratio)
+          end
         end
         text = lines.join("\n")
         begin
