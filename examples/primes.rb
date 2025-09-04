@@ -53,8 +53,8 @@ class PrimesExample
     result
   end
 
-  benchmark_instance_methods
-  profile_instance_methods
+  track_performance
+  track_memory
 end
 
 if $PROGRAM_NAME == __FILE__
@@ -66,6 +66,5 @@ if $PROGRAM_NAME == __FILE__
   puts '=== Primes: trial_division (low memory, slower) vs sieve_of_eratosthenes (higher memory, faster) ==='
   puts "Input N=#{limit}"
   puts
-  puts example.benchmark_report
-  puts example.memory_report
+  example.profile_report
 end

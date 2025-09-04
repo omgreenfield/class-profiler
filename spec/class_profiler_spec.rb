@@ -9,7 +9,7 @@ RSpec.describe ClassProfiler do
     expect(ClassProfiler::NAME).not_to be nil
   end
 
-  describe 'Benchmark integration' do
+  describe 'Performance integration' do
     context 'with explicit methods' do
       let(:klass) do
         Class.new do
@@ -18,7 +18,7 @@ RSpec.describe ClassProfiler do
           def fast = 1.+(1)
           def slow = sleep(0.002)
 
-          benchmark_methods :fast, :slow
+          track_performance
         end
       end
 
@@ -30,9 +30,9 @@ RSpec.describe ClassProfiler do
       end
 
       it 'records timings for both methods and slow >= fast' do
-        expect(obj.benchmarked.keys).to include(:fast, :slow)
-        expect(obj.benchmarked[:fast]).to be >= 0
-        expect(obj.benchmarked[:slow]).to be >= obj.benchmarked[:fast]
+        expect(obj.performance.keys).to include(:fast, :slow)
+        expect(obj.performance[:fast][:time]).to be >= 0
+        expect(obj.performance[:slow][:time]).to be >= obj.performance[:fast][:time]
       end
     end
 
@@ -47,7 +47,7 @@ RSpec.describe ClassProfiler do
       let(:child) do
         Class.new(parent) do
           def child_method = 'c'
-          benchmark_instance_methods
+          track_performance inherited: false
         end
       end
 
@@ -56,13 +56,13 @@ RSpec.describe ClassProfiler do
         obj.parent_method
         obj.child_method
 
-        expect(obj.benchmarked).to include(:child_method)
-        expect(obj.benchmarked).not_to include(:parent_method)
+        expect(obj.performance).to include(:child_method)
+        expect(obj.performance).not_to include(:parent_method)
       end
     end
   end
 
-  describe 'Memory profiling integration' do
+  describe 'Memory tracking integration' do
     context 'with explicit methods' do
       let(:klass) do
         Class.new do
@@ -72,7 +72,7 @@ RSpec.describe ClassProfiler do
             Array.new(100) { 'x' * 10 }
           end
 
-          profile_methods :allocate_strings
+          track_memory inherited: false, protected: false, private: false
         end
       end
 
@@ -80,8 +80,8 @@ RSpec.describe ClassProfiler do
         obj = klass.new
         obj.allocate_strings
 
-        expect(obj.profiled_memory).to include(:allocate_strings)
-        stats = obj.profiled_memory[:allocate_strings]
+        expect(obj.memory).to include(:allocate_strings)
+        stats = obj.memory[:allocate_strings]
         expect(stats[:allocated_objects]).to be >= 0
         expect(stats[:malloc_increase_bytes]).to be_a(Integer)
       end
@@ -98,7 +98,7 @@ RSpec.describe ClassProfiler do
       let(:child) do
         Class.new(parent) do
           def child_allocate = Array.new(10) { 'y' }
-          profile_instance_methods
+          track_memory inherited: false
         end
       end
 
@@ -107,8 +107,8 @@ RSpec.describe ClassProfiler do
         obj.parent_allocate
         obj.child_allocate
 
-        expect(obj.profiled_memory).to include(:child_allocate)
-        expect(obj.profiled_memory).not_to include(:parent_allocate)
+        expect(obj.memory).to include(:child_allocate)
+        expect(obj.memory).not_to include(:parent_allocate)
       end
     end
   end

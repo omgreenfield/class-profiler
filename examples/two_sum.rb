@@ -5,19 +5,20 @@ require_relative '../lib/class_profiler'
 class TwoSumExample
   include ClassProfiler
 
-  def initialize(nums, target)
-    @nums = nums
+  def initialize(numbers, target)
+    @numbers = numbers
     @target = target
   end
 
   def brute_force
-    arr = @nums
+    arr = @numbers
     len = arr.length
     i = 0
     while i < len
       j = i + 1
       while j < len
         return [i, j] if arr[i] + arr[j] == @target
+
         j += 1
       end
       i += 1
@@ -27,33 +28,31 @@ class TwoSumExample
 
   def hashmap
     seen = {}
-    @nums.each_with_index do |num, idx|
-      complement = @target - num
+    @numbers.each_with_index do |number, idx|
+      complement = @target - number
       j = seen[complement]
       return [j, idx] if j
-      seen[num] = idx
+
+      seen[number] = idx
     end
     nil
   end
 
-  benchmark_instance_methods
-  profile_instance_methods
+  track_performance
+  track_memory
 end
 
 if $PROGRAM_NAME == __FILE__
   srand(123)
   size = Integer(ENV.fetch('SIZE', '5000'), 10)
-  nums = Array.new(size) { rand(1..10_000) }
-  target = nums.sample + nums.sample
+  numbers = Array.new(size) { rand(1..10_000) }
+  target = numbers.sample + numbers.sample
 
-  example = TwoSumExample.new(nums, target)
+  example = TwoSumExample.new(numbers, target)
   example.brute_force
   example.hashmap
 
   puts '=== Two Sum: brute_force (low memory, slower) vs hashmap (higher memory, faster) ==='
   puts "Input SIZE=#{size}"
-  puts
-  puts example.benchmark_report
-  puts example.memory_report
+  example.profile_report
 end
-

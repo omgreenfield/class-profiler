@@ -11,6 +11,36 @@ module ClassProfiler
       def profiler_logger
         self.class.profiler_logger
       end
+
+      def print_report(entries, headers: [], include_zero: true, sort_index: 0)
+        rows = entries.entries
+        rows.filter! { |(_, time)| include_zero || time.to_f > 0.0 }
+        rows.sort_by! do |row|
+          value = row[sort_index]
+          if value.is_a?(Float)
+            value.to_f
+          else
+            value.to_s
+          end
+        end
+
+        rows = [headers] + rows
+
+        column_widths = rows.transpose.map do |column|
+          column.map { |value| value.to_s.length }.max
+        end
+
+        rows.each do |row|
+          row_text = row.map.with_index do |cell, index|
+            cell = format('%.6f', cell) if cell.is_a?(Float)
+            cell.to_s.ljust(column_widths[index])
+          end.join(' | ')
+
+          profiler_logger.info(row_text)
+        end
+
+        entries
+      end
     end
 
     module ClassMethods
@@ -21,11 +51,11 @@ module ClassProfiler
         end
 
         def add(severity, message = nil, progname = nil)
-          @loggers.each { |l| l.add(severity, message, progname) }
+          @loggers.each { |logger| logger.add(severity, message, progname) }
         end
 
-        def level=(lvl)
-          @loggers.each { |l| l.level = lvl }
+        def level=(level)
+          @loggers.each { |logger| logger.level = level }
         end
 
         def level
@@ -37,7 +67,7 @@ module ClassProfiler
         @profiler_logger ||= begin
           require 'logger'
           logger = Logger.new($stdout)
-          logger.level = Logger::WARN
+          logger.level = Logger::INFO
           logger
         end
       end
@@ -58,12 +88,12 @@ module ClassProfiler
         file_logger = Logger.new(path, shift_age, shift_size)
         file_logger.level = level
         self.profiler_logger = if also_stdout
-                                  stdout_logger = Logger.new($stdout)
-                                  stdout_logger.level = level
-                                  MultiLogger.new(file_logger, stdout_logger)
-                                else
-                                  file_logger
-                                end
+                                 stdout_logger = Logger.new($stdout)
+                                 stdout_logger.level = level
+                                 MultiLogger.new(file_logger, stdout_logger)
+                               else
+                                 file_logger
+                               end
       end
     end
   end

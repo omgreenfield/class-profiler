@@ -42,13 +42,12 @@ module ClassProfiler
       # @param include_inherited [Boolean]
       # @return [Array<Symbol>]
       def select_instance_methods(visibility: :public, include_inherited: true)
-        inherit = include_inherited || false
         names = case visibility
-                when :public      then public_instance_methods(inherit)
-                when :protected   then protected_instance_methods(inherit)
-                when :private     then private_instance_methods(inherit)
-                when :all         then (instance_methods(inherit) + protected_instance_methods(inherit) + private_instance_methods(inherit)).uniq
-                else public_instance_methods(inherit)
+                when :public      then public_instance_methods(include_inherited)
+                when :protected   then protected_instance_methods(include_inherited)
+                when :private     then private_instance_methods(include_inherited)
+                when :all         then (instance_methods(include_inherited) + protected_instance_methods(include_inherited) + private_instance_methods(include_inherited)).uniq
+                else public_instance_methods(include_inherited)
                 end
 
         names.reject { |m| RESERVED_INSTANCE_METHODS.include?(m) || m.to_s.start_with?('_') || helper_owner_module?(instance_method(m).owner) }

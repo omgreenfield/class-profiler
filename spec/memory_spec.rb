@@ -3,7 +3,7 @@
 require 'logger'
 
 RSpec.describe ClassProfiler::Memory do
-  context 'with profile_methods for explicit method list' do
+  context 'with track_memory for explicit method list' do
     let(:klass) do
       Class.new do
         include ClassProfiler::Memory
@@ -12,7 +12,7 @@ RSpec.describe ClassProfiler::Memory do
           Array.new(50) { 'x' * 10 }
         end
 
-        profile_methods :allocate_strings
+        track_memory inherited: false, protected: false, private: false
       end
     end
 
@@ -20,14 +20,12 @@ RSpec.describe ClassProfiler::Memory do
 
     before { obj.allocate_strings }
 
-    it 'records allocation deltas for the profiled method and reports' do
-      expect(obj.profiled_memory).to include(:allocate_strings)
-      stats = obj.profiled_memory[:allocate_strings]
+    it 'records allocation deltas for the selected method and reports' do
+      expect(obj.memory).to include(:allocate_strings)
+      stats = obj.memory[:allocate_strings]
       expect(stats[:allocated_objects]).to be_a(Integer)
       expect(stats[:malloc_increase_bytes]).to be_a(Integer)
-      text = obj.memory_report
-      expect(text).to include('Memory profile (')
-      expect(text).to include('allocate_strings:')
+      obj.memory_report
     end
 
     it 'writes the memory report to the configured logger' do
@@ -45,11 +43,11 @@ RSpec.describe ClassProfiler::Memory do
       klass_with_logging.profiler_logger = logger
 
       obj.memory_report
-      expect(io.string).to include('Memory profile (')
+      expect(io.string).to include('Method | Objects | Bytes')
     end
   end
 
-  context 'with profile_instance_methods in an inheritance hierarchy' do
+  context 'with inheritance selection' do
     let(:parent) do
       Class.new do
         include ClassProfiler::Memory
@@ -60,7 +58,7 @@ RSpec.describe ClassProfiler::Memory do
     let(:child) do
       Class.new(parent) do
         def child_allocate = Array.new(10) { 'y' }
-        profile_instance_methods
+        track_memory inherited: false
       end
     end
 
@@ -71,9 +69,9 @@ RSpec.describe ClassProfiler::Memory do
       obj.child_allocate
     end
 
-    it 'profiles only non-inherited methods' do
-      expect(obj.profiled_memory).to include(:child_allocate)
-      expect(obj.profiled_memory).not_to include(:parent_allocate)
+    it 'tracks only non-inherited methods' do
+      expect(obj.memory).to include(:child_allocate)
+      expect(obj.memory).not_to include(:parent_allocate)
     end
   end
 end

@@ -27,6 +27,7 @@ Gem::Specification.new do |gem|
 
   gem.required_ruby_version = '>= 3.1.0'
 
+  gem.add_development_dependency 'activesupport'
   gem.add_development_dependency 'guard'
   gem.add_development_dependency 'guard-rspec'
   gem.add_development_dependency 'pry'

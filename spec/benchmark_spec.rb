@@ -2,17 +2,17 @@
 
 require 'logger'
 
-RSpec.describe ClassProfiler::Benchmark do
-  describe '#benchmark_methods' do
+RSpec.describe ClassProfiler::Performance do
+  describe '#track_performance' do
     let(:klass) do
       Class.new do
-        include ClassProfiler::Benchmark
+        include ClassProfiler::Performance
         include ClassProfiler::Logging
 
         def fast = 1.+(1)
         def slow = sleep(0.002)
 
-        benchmark_methods :fast, :slow
+        track_performance
       end
     end
 
@@ -23,43 +23,34 @@ RSpec.describe ClassProfiler::Benchmark do
       obj.slow
     end
 
-    it 'records timings for explicit methods' do
-      expect(obj.benchmarked.keys).to include(:fast, :slow)
-      expect(obj.benchmarked[:fast]).to be_a(Numeric)
-      expect(obj.benchmarked[:slow]).to be_a(Numeric)
-      expect(obj.benchmarked[:fast]).to be >= 0
-      expect(obj.benchmarked[:slow]).to be >= 0
+    it 'records timings for selected methods' do
+      expect(obj.performance.keys).to include(:fast, :slow)
+      expect(obj.performance[:fast][:time]).to be_a(Numeric)
+      expect(obj.performance[:slow][:time]).to be_a(Numeric)
+      expect(obj.performance[:fast][:time]).to be >= 0
+      expect(obj.performance[:slow][:time]).to be >= 0
     end
 
     it 'measures slow >= fast to guard against flakiness' do
-      expect(obj.benchmarked[:slow]).to be >= obj.benchmarked[:fast]
-    end
-    it 'generates a benchmark report on demand' do
-      text = obj.benchmark_report
-      expect(text).to include('Benchmark results (')
-      expect(text).to include('fast:')
-      expect(text).to include('slow:')
+      expect(obj.performance[:slow][:time]).to be >= obj.performance[:fast][:time]
     end
 
-    it 'writes the report to the configured logger' do
+    it 'writes a tabular report via logger' do
       require 'stringio'
       io = StringIO.new
       logger = Logger.new(io)
       logger.level = Logger::INFO
       klass.profiler_logger = logger
 
-      obj.benchmark_report
-
-      output = io.string
-      expect(output).to include('Benchmark results (')
-      expect(output).to include('fast:')
+      obj.performance_report
+      expect(io.string).to match(/Method \| Time\s+\| Total/)
     end
   end
 
-  describe '#benchmark_instance_methods' do
+  describe 'inheritance selection with track_performance' do
     let(:parent) do
       Class.new do
-        include ClassProfiler::Benchmark
+        include ClassProfiler::Performance
         def parent_method = 'p'
       end
     end
@@ -67,164 +58,17 @@ RSpec.describe ClassProfiler::Benchmark do
     let(:child) do
       Class.new(parent) do
         def child_method = 'c'
-        benchmark_instance_methods
+        track_performance inherited: false
       end
     end
 
-    let(:obj) { child.new }
-
-    before do
+    it 'tracks only non-inherited methods by default' do
+      obj = child.new
       obj.parent_method
       obj.child_method
-    end
 
-    it 'benchmarks only non-inherited methods' do
-      expect(obj.benchmarked).not_to include(:parent_method)
-      expect(obj.benchmarked).to include(:child_method)
-      expect(obj.benchmarked[:child_method]).to be >= 0
-    end
-  end
-
-  describe '#benchmark_all_methods' do
-    let(:parent) do
-      Class.new do
-        include ClassProfiler::Benchmark
-        def parent_method = 'p'
-
-        protected def parent_protected = 'pp'
-
-        private def parent_private = 'pv'
-      end
-    end
-
-    let(:child) do
-      Class.new(parent) do
-        def child_method = 'c'
-
-        protected def child_protected = 'cp'
-
-        private def child_private = 'cv'
-        benchmark_all_methods(visibility: :all)
-      end
-    end
-
-    let(:obj) { child.new }
-
-    it 'benchmarks inherited and child methods across visibilities' do
-      obj.parent_method
-      obj.send(:parent_protected)
-      obj.send(:parent_private)
-      obj.child_method
-      obj.send(:child_protected)
-      obj.send(:child_private)
-
-      expect(obj.benchmarked).to include(:child_method, :parent_method, :child_protected, :parent_protected,
-                                         :child_private, :parent_private)
-      expect(obj.benchmarked.values).to all(be >= 0)
-    end
-  end
-
-  describe '#benchmark_class_methods' do
-    context 'explicit class methods' do
-      let(:klass) do
-        Class.new do
-          include ClassProfiler::Benchmark
-          include ClassProfiler::Logging
-
-          def self.a = 1.+(1)
-          def self.b = sleep(0.002)
-
-          benchmark_class_methods :a, :b
-        end
-      end
-
-      it 'records timings for class methods' do
-        klass.a
-        klass.b
-        expect(klass.class_benchmarked).to include(:a, :b)
-        expect(klass.class_benchmarked[:a]).to be >= 0
-        expect(klass.class_benchmarked[:b]).to be >= 0
-      end
-
-      it 'generates a class benchmark report on demand' do
-        klass.a
-        expect(klass.benchmark_class_report).to include('Benchmark results (')
-        expect(klass.benchmark_class_report).to include('a:')
-      end
-
-      it 'writes the class report to the configured logger' do
-        require 'stringio'
-        io = StringIO.new
-        logger = Logger.new(io)
-        logger.level = Logger::INFO
-        klass.profiler_logger = logger
-
-        klass.a
-        klass.benchmark_class_report
-
-        output = io.string
-        expect(output).to include('Benchmark results (')
-        expect(output).to include('a:')
-      end
-    end
-  end
-
-  describe '#benchmark_own_class_methods' do
-    context 'own vs inherited class methods with visibility selection' do
-      let(:parent) do
-        Class.new do
-          include ClassProfiler::Benchmark
-          def self.p_pub = 'pp'
-          class << self
-            protected def p_prot = 'prot'
-            private def p_priv = 'priv'
-          end
-        end
-      end
-
-      let(:child) do
-        Class.new(parent) do
-          def self.c_pub = 'cp'
-          class << self
-            protected def c_prot = 'prot'
-            private def c_priv = 'priv'
-          end
-
-          benchmark_own_class_methods(visibility: :all)
-        end
-      end
-
-      it 'benchmarks only own class methods across visibilities' do
-        child.c_pub
-        child.send(:c_prot)
-        child.send(:c_priv)
-
-        expect(child.class_benchmarked).to include(:c_pub, :c_prot, :c_priv)
-        expect(child.class_benchmarked).not_to include(:p_pub, :p_prot, :p_priv)
-      end
-    end
-  end
-
-  describe '#benchmark_all_class_methods' do
-    context 'own vs inherited class methods with visibility selection' do
-      let(:parent) do
-        Class.new do
-          include ClassProfiler::Benchmark
-          def self.p_pub = 'pp'
-        end
-      end
-
-      it 'benchmarks inherited class methods when requested' do
-        child = Class.new(parent) do
-          def self.c_pub = 'cp'
-          benchmark_all_class_methods(visibility: :public)
-        end
-
-        child.p_pub
-        child.c_pub
-
-        expect(child.class_benchmarked).to include(:p_pub, :c_pub)
-      end
+      expect(obj.performance).to include(:child_method)
+      expect(obj.performance).not_to include(:parent_method)
     end
   end
 end

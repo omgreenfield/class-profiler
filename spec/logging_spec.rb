@@ -9,7 +9,7 @@ RSpec.describe ClassProfiler::Logging do
 
       logger = klass.profiler_logger
       expect(logger).to be_a(Logger)
-      expect(logger.level).to eq(Logger::WARN)
+      expect(logger.level).to eq(Logger::INFO)
     end
   end
 
