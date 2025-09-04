@@ -1,44 +1,77 @@
 # frozen_string_literal: true
 
+require 'logger'
+
 RSpec.describe ClassProfiler::Memory do
-  it 'profiles specified methods and records allocation deltas' do
-    klass = Class.new do
-      include ClassProfiler::Memory
+  context 'with track_memory for explicit method list' do
+    let(:klass) do
+      Class.new do
+        include ClassProfiler::Memory
 
-      def allocate_strings
-        Array.new(50) { 'x' * 10 }
+        def allocate_strings
+          Array.new(50) { 'x' * 10 }
+        end
+
+        track_memory inherited: false, protected: false, private: false
       end
-
-      profile_methods :allocate_strings
     end
 
-    obj = klass.new
-    obj.allocate_strings
+    let(:obj) { klass.new }
 
-    expect(obj.profiled_memory).to include(:allocate_strings)
-    stats = obj.profiled_memory[:allocate_strings]
-    expect(stats[:allocated_objects]).to be >= 0
-    expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+    before { obj.allocate_strings }
+
+    it 'records allocation deltas for the selected method and reports' do
+      expect(obj.memory).to include(:allocate_strings)
+      stats = obj.memory[:allocate_strings]
+      expect(stats[:allocated_objects]).to be_a(Integer)
+      expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+      obj.memory_report
+    end
+
+    it 'writes the memory report to the configured logger' do
+      require 'stringio'
+      io = StringIO.new
+      logger = Logger.new(io)
+      logger.level = Logger::INFO
+
+      # attach logger via a wrapper class that includes Logging
+      # attach logger to the klass via Logging
+      klass_with_logging = Class.new(klass) do
+        include ClassProfiler::Logging
+      end
+      obj = klass_with_logging.new
+      klass_with_logging.profiler_logger = logger
+
+      obj.memory_report
+      expect(io.string).to include('Method | Objects | Bytes')
+    end
   end
 
-  it 'profiles only non-inherited instance methods when requested' do
-    parent = Class.new do
-      include ClassProfiler::Memory
-      def parent_allocate = Array.new(10) { 'x' }
+  context 'with inheritance selection' do
+    let(:parent) do
+      Class.new do
+        include ClassProfiler::Memory
+        def parent_allocate = Array.new(10) { 'x' }
+      end
     end
 
-    child = Class.new(parent) do
-      def child_allocate = Array.new(10) { 'y' }
-      profile_instance_methods
+    let(:child) do
+      Class.new(parent) do
+        def child_allocate = Array.new(10) { 'y' }
+        track_memory inherited: false
+      end
     end
 
-    obj = child.new
-    obj.parent_allocate
-    obj.child_allocate
+    let(:obj) { child.new }
 
-    expect(obj.profiled_memory).to include(:child_allocate)
-    expect(obj.profiled_memory).not_to include(:parent_allocate)
+    before do
+      obj.parent_allocate
+      obj.child_allocate
+    end
+
+    it 'tracks only non-inherited methods' do
+      expect(obj.memory).to include(:child_allocate)
+      expect(obj.memory).not_to include(:parent_allocate)
+    end
   end
-
-  # NOTE: inherited-all behavior can be environment-sensitive; focusing on explicit method profiling
 end

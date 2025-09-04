@@ -9,83 +9,107 @@ RSpec.describe ClassProfiler do
     expect(ClassProfiler::NAME).not_to be nil
   end
 
-  describe 'Benchmark integration' do
-    it 'benchmarks specified methods and records elapsed time' do
-      klass = Class.new do
-        include ClassProfiler
+  describe 'Performance integration' do
+    context 'with explicit methods' do
+      let(:klass) do
+        Class.new do
+          include ClassProfiler
 
-        def fast = 1.+(1)
-        def slow = sleep(0.01)
+          def fast = 1.+(1)
+          def slow = sleep(0.002)
 
-        benchmark_methods :fast, :slow
+          track_performance
+        end
       end
 
-      obj = klass.new
-      obj.fast
-      obj.slow
+      let(:obj) { klass.new }
 
-      expect(obj.benchmarked).to include(:fast, :slow)
-      expect(obj.benchmarked[:slow]).to be > 0
+      before do
+        obj.fast
+        obj.slow
+      end
+
+      it 'records timings for both methods and slow >= fast' do
+        expect(obj.performance.keys).to include(:fast, :slow)
+        expect(obj.performance[:fast][:time]).to be >= 0
+        expect(obj.performance[:slow][:time]).to be >= obj.performance[:fast][:time]
+      end
     end
 
-    it 'benchmarks only non-inherited instance methods when requested' do
-      parent = Class.new do
-        include ClassProfiler
-        def parent_method = 'p'
+    context 'with inheritance and non-inherited selection' do
+      let(:parent) do
+        Class.new do
+          include ClassProfiler
+          def parent_method = 'p'
+        end
       end
 
-      child = Class.new(parent) do
-        def child_method = 'c'
-        benchmark_instance_methods
+      let(:child) do
+        Class.new(parent) do
+          def child_method = 'c'
+          track_performance inherited: false
+        end
       end
 
-      obj = child.new
-      obj.parent_method
-      obj.child_method
+      it 'includes only child methods' do
+        obj = child.new
+        obj.parent_method
+        obj.child_method
 
-      expect(obj.benchmarked).to include(:child_method)
-      expect(obj.benchmarked).not_to include(:parent_method)
+        expect(obj.performance).to include(:child_method)
+        expect(obj.performance).not_to include(:parent_method)
+      end
     end
   end
 
-  describe 'Memory profiling integration' do
-    it 'profiles specified methods and records allocation deltas' do
-      klass = Class.new do
-        include ClassProfiler
+  describe 'Memory tracking integration' do
+    context 'with explicit methods' do
+      let(:klass) do
+        Class.new do
+          include ClassProfiler
 
-        def allocate_strings
-          Array.new(100) { 'x' * 10 }
+          def allocate_strings
+            Array.new(100) { 'x' * 10 }
+          end
+
+          track_memory inherited: false, protected: false, private: false
         end
-
-        profile_methods :allocate_strings
       end
 
-      obj = klass.new
-      obj.allocate_strings
+      it 'records allocation deltas' do
+        obj = klass.new
+        obj.allocate_strings
 
-      expect(obj.profiled_memory).to include(:allocate_strings)
-      stats = obj.profiled_memory[:allocate_strings]
-      expect(stats[:allocated_objects]).to be >= 0
-      expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+        expect(obj.memory).to include(:allocate_strings)
+        stats = obj.memory[:allocate_strings]
+        expect(stats[:allocated_objects]).to be >= 0
+        expect(stats[:malloc_increase_bytes]).to be_a(Integer)
+      end
     end
 
-    it 'profiles only non-inherited instance methods when requested' do
-      parent = Class.new do
-        include ClassProfiler
-        def parent_allocate = Array.new(10) { 'x' }
+    context 'with inheritance and non-inherited selection' do
+      let(:parent) do
+        Class.new do
+          include ClassProfiler
+          def parent_allocate = Array.new(10) { 'x' }
+        end
       end
 
-      child = Class.new(parent) do
-        def child_allocate = Array.new(10) { 'y' }
-        profile_instance_methods
+      let(:child) do
+        Class.new(parent) do
+          def child_allocate = Array.new(10) { 'y' }
+          track_memory inherited: false
+        end
       end
 
-      obj = child.new
-      obj.parent_allocate
-      obj.child_allocate
+      it 'includes only child methods' do
+        obj = child.new
+        obj.parent_allocate
+        obj.child_allocate
 
-      expect(obj.profiled_memory).to include(:child_allocate)
-      expect(obj.profiled_memory).not_to include(:parent_allocate)
+        expect(obj.memory).to include(:child_allocate)
+        expect(obj.memory).not_to include(:parent_allocate)
+      end
     end
   end
 end
