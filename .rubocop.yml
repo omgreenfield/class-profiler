@@ -33,3 +33,6 @@ Layout/LineLength:
 Style/AccessModifierDeclarations:
   EnforcedStyle: inline
   Enabled: true
+
+Metrics/PerceivedComplexity:
+  Enabled: false

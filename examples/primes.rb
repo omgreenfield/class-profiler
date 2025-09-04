@@ -17,6 +17,7 @@ class PrimesExample
       root = Math.sqrt(candidate).to_i
       primes.each do |p|
         break if p > root
+
         if (candidate % p).zero?
           is_prime = false
           break

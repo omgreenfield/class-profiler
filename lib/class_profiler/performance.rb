@@ -82,5 +82,3 @@ module ClassProfiler
     end
   end
 end
-
-
